@@ -8,6 +8,14 @@ use crate::painter::Painter3d;
 use crate::subgizmo::SubGizmo;
 use crate::{GizmoDirection, GizmoMode, GizmoResult, Ray, WidgetData};
 
+/// When the angle between the subgizmo normal and the view direction is too large,
+/// the plane shapes are no longer drawn to prevent distortion.
+const PLANE_MIN_DRAW_DOT: f32 = 0.025;
+
+/// When the angle between the subgizmo normal and the view direction is too small,
+/// the arrow shapes are no longer drawn to prevent distortion.
+const ARROW_MAX_DRAW_DOT: f32 = 0.999;
+
 /// Picks given translation subgizmo. If the subgizmo is close enough to
 /// the mouse pointer, distance from camera to the subgizmo is returned.
 pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
@@ -61,6 +69,11 @@ pub(crate) fn draw_translation(subgizmo: &SubGizmo, ui: &Ui) {
     let end = direction * length;
 
     painter.line_segment(start, end, (subgizmo.config.visuals.stroke_width, color));
+
+    if subgizmo.normal().dot(subgizmo.config.view_forward()).abs() > ARROW_MAX_DRAW_DOT {
+        return;
+    }
+
     painter.arrow(
         end,
         end + direction * arrow_length,
@@ -132,6 +145,10 @@ pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> 
 }
 
 pub(crate) fn draw_translation_plane(subgizmo: &SubGizmo, ui: &Ui) {
+    if subgizmo.normal().dot(subgizmo.config.view_forward()).abs() < PLANE_MIN_DRAW_DOT {
+        return;
+    }
+
     let painter = Painter3d::new(
         ui.painter().clone(),
         subgizmo.config.view_projection * translation_transform(subgizmo),
